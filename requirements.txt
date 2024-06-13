@@ -1,0 +1,8 @@
+opencv-python
+opencv-python-headless
+numpy
+tensorflow
+keras
+filterpy
+scikit-image
+lap
