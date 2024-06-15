@@ -1,9 +1,42 @@
+import sys
 import cv2
 import numpy as np
 from sort import Sort
 import cv2
 import time
 import os
+
+from threading import Thread
+
+class ThreadedCamera(object):
+    def __init__(self, source = 0):
+
+        self.capture = cv2.VideoCapture(source)
+        self.run = True
+        self.thread = Thread(target = self.update, args = ())
+        self.thread.daemon = True
+        self.thread.start()
+
+        self.status = False
+        self.frame  = None
+
+    def update(self):
+        while self.run:
+            if self.capture.isOpened():
+                (self.status, self.frame) = self.capture.read()
+        self.capture.release()
+        sys.exit()
+
+    def grab_frame(self):
+        if self.status:
+            return self.status, self.frame
+        return None 
+    
+    def is_valid(self):
+        return self.capture.isOpened()
+    
+    def close(self):
+        self.run = False
 
 def detect_cars(frame):
     height, width, channels = frame.shape
@@ -47,11 +80,18 @@ print("Initializing RTSP stream...")
 
 endpoint = os.getenv("RTSP_ENDPOINT")
 if endpoint is None:
-	print("No endpoint specified, exiting!")
-	exit(1)
-cap = cv2.VideoCapture(endpoint)
+    print("No endpoint specified, trying the secret file.")
+    try:
+        with open(".rtsp_endpoint", "r") as f:
+            endpoint = f.read().strip()
+            print("Found endpoint in secret file!")
+    except FileNotFoundError:
+        print("No endpoint specified in the secret file either, exiting")
+        exit(1)
 
-if not cap.isOpened():
+threaded_camera = ThreadedCamera(endpoint)
+
+if not threaded_camera.is_valid():
     print("Error: Couldn't open the RTSP stream.")
 else:
     print("RTSP stream opened successfully.")
@@ -72,9 +112,10 @@ tracker = Sort()
 
 car_positions = {}
 
+i = 0
 while True:
-    ret, frame = cap.read()
-    print("processing frame")
+    i += 1
+    ret, frame = threaded_camera.grab_frame()
     if not ret:
         print("Failed to read frame from RTSP stream.")
         break
@@ -85,29 +126,25 @@ while True:
     
     for track in tracks:
         x1, y1, x2, y2, track_id = track
-        if track_id not in car_positions:
-            car_positions[track_id] = []
+        print(track_id)
+        car_position = car_positions.setdefault(track_id, [])
         
-        car_positions[track_id].append((x1, y1, x2, y2))
+        car_position.append((x1, y1, x2, y2))
         
-        if len(car_positions[track_id]) > 1:
-            x1_old, y1_old, x2_old, y2_old = car_positions[track_id][-2]
-            x1_new, y1_new, x2_new, y2_new = car_positions[track_id][-1]
+        if len(car_position) > 1:
+            x1_old, y1_old, x2_old, y2_old = car_position[-2]
+            x1_new, y1_new, x2_new, y2_new = car_position[-1]
             direction = "right" if x1_new > x1_old else "left"
+            print(direction)
             cv2.putText(frame, direction, (int(x1), int(y1) - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
         
         cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
         cv2.putText(frame, str(track_id), (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     
-    #cv2.imshow('Frame', frame)
+    cv2.imshow('Frame', frame)
     
-   # if cv2.waitKey(1) & 0xFF == ord('q'):
-    #    break
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-cap.release()
+threaded_camera.close()
 cv2.destroyAllWindows()
-
-
-cap.release()
-cv2.destroyAllWindows()
-

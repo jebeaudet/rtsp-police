@@ -2,3 +2,5 @@
 __pycache__
 venv
 yolo/yolov3.weights
+.rtsp_endpoint
+.vscode
