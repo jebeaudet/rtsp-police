@@ -8,6 +8,20 @@ import os
 
 from threading import Thread
 
+class FileFrameFeed(object):
+    def __init__(self, source = 0):
+        self.capture = cv2.VideoCapture(source)
+
+    def grab_frame(self):
+        return self.capture.read()
+    
+    def is_valid(self):
+        return self.capture.isOpened()
+    
+    def close(self):
+        return
+
+
 class ThreadedCamera(object):
     def __init__(self, source = 0):
 
@@ -30,13 +44,14 @@ class ThreadedCamera(object):
     def grab_frame(self):
         if self.status:
             return self.status, self.frame
-        return None 
+        return None, None
     
     def is_valid(self):
         return self.capture.isOpened()
     
     def close(self):
         self.run = False
+        self.thread.join()
 
 def detect_cars(frame):
     height, width, channels = frame.shape
@@ -47,6 +62,7 @@ def detect_cars(frame):
     class_ids = []
     confidences = []
     boxes = []
+    boxes_with_confidences = []
     
     for out in outs:
         for detection in out:
@@ -62,39 +78,40 @@ def detect_cars(frame):
                 x = int(center_x - w / 2)
                 y = int(center_y - h / 2)
                 
-                boxes.append([x, y, w, h])
+                boxes.append([x, y, x + w, y + h])
+                boxes_with_confidences.append([x, y, x + w, y + h, confidence])
                 confidences.append(float(confidence))
                 class_ids.append(class_id)
     
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
     cars = []
-    for i in range(len(boxes)):
+    for i in range(len(boxes_with_confidences)):
         if i in indexes:
-            x, y, w, h = boxes[i]
-            cars.append((x, y, w, h))
+            x, y, w, h, confidence = boxes_with_confidences[i]
+            cars.append((x, y, w, h, confidence))
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
     
     return cars, frame
 
-print("Initializing RTSP stream...")
+print("Initializing video stream...")
 
-endpoint = os.getenv("RTSP_ENDPOINT")
+endpoint = os.getenv("VIDEO_ENDPOINT")
 if endpoint is None:
     print("No endpoint specified, trying the secret file.")
     try:
-        with open(".rtsp_endpoint", "r") as f:
+        with open(".video_endpoint", "r") as f:
             endpoint = f.read().strip()
             print("Found endpoint in secret file!")
     except FileNotFoundError:
         print("No endpoint specified in the secret file either, exiting")
         exit(1)
-
-threaded_camera = ThreadedCamera(endpoint)
+endpoint = "./samples/sample.mp4"
+threaded_camera = ThreadedCamera(endpoint) if endpoint.startswith("rtsp://") else FileFrameFeed(endpoint)
 
 if not threaded_camera.is_valid():
-    print("Error: Couldn't open the RTSP stream.")
+    print("Error: Couldn't open the video stream.")
 else:
-    print("RTSP stream opened successfully.")
+    print("video stream opened successfully.")
 
 # Load YOLO model
 net = cv2.dnn.readNet("yolo/yolov3.weights", "yolo/yolov3.cfg")
@@ -117,29 +134,33 @@ while True:
     i += 1
     ret, frame = threaded_camera.grab_frame()
     if not ret:
-        print("Failed to read frame from RTSP stream.")
-        break
+        print("Failed to read frame from video stream.")
+        time.sleep(0.1)
+        continue
     
     cars, frame = detect_cars(frame)
     detections = np.array(cars)
-    tracks = tracker.update(detections)
-    
-    for track in tracks:
-        x1, y1, x2, y2, track_id = track
-        print(track_id)
-        car_position = car_positions.setdefault(track_id, [])
-        
-        car_position.append((x1, y1, x2, y2))
-        
-        if len(car_position) > 1:
-            x1_old, y1_old, x2_old, y2_old = car_position[-2]
-            x1_new, y1_new, x2_new, y2_new = car_position[-1]
-            direction = "right" if x1_new > x1_old else "left"
-            print(direction)
-            cv2.putText(frame, direction, (int(x1), int(y1) - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-        
-        cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
-        cv2.putText(frame, str(track_id), (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+    if detections.size > 0:
+        detections = detections.reshape((-1, 5))
+        tracks = tracker.update(detections)
+        print(tracks)
+        print(detections)
+        for track in tracks:
+            x1, y1, x2, y2, track_id = track
+            print(f"this is the track it {track_id}")
+            car_position = car_positions.setdefault(track_id, [])
+            
+            car_position.append((x1, y1, x2, y2))
+            
+            if len(car_position) > 1:
+                x1_old, y1_old, x2_old, y2_old = car_position[-2]
+                x1_new, y1_new, x2_new, y2_new = car_position[-1]
+                direction = "right" if x1_new > x1_old else "left"
+                print(direction)
+                cv2.putText(frame, direction, (int(x1), int(y1) - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+            
+            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+            cv2.putText(frame, str(track_id), (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
     
     cv2.imshow('Frame', frame)
     
