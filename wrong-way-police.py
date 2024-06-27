@@ -89,7 +89,7 @@ def detect_cars(frame):
         if i in indexes:
             x, y, w, h, confidence = boxes_with_confidences[i]
             cars.append((x, y, w, h, confidence))
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            #cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
     
     return cars, frame
 
@@ -143,11 +143,8 @@ while True:
     if detections.size > 0:
         detections = detections.reshape((-1, 5))
         tracks = tracker.update(detections)
-        print(tracks)
-        print(detections)
         for track in tracks:
             x1, y1, x2, y2, track_id = track
-            print(f"this is the track it {track_id}")
             car_position = car_positions.setdefault(track_id, [])
             
             car_position.append((x1, y1, x2, y2))
@@ -156,7 +153,6 @@ while True:
                 x1_old, y1_old, x2_old, y2_old = car_position[-2]
                 x1_new, y1_new, x2_new, y2_new = car_position[-1]
                 direction = "right" if x1_new > x1_old else "left"
-                print(direction)
                 cv2.putText(frame, direction, (int(x1), int(y1) - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
             
             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
