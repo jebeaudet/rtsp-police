@@ -6,3 +6,4 @@ keras
 filterpy
 scikit-image
 lap
+sqlite3

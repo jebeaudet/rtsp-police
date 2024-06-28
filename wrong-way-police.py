@@ -1,3 +1,6 @@
+from collections import deque
+import datetime
+import sqlite3
 import sys
 import cv2
 import numpy as np
@@ -7,6 +10,8 @@ import time
 import os
 
 from threading import Thread
+
+logged_track_ids = set()
 
 class FileFrameFeed(object):
     def __init__(self, source = 0):
@@ -93,6 +98,46 @@ def detect_cars(frame):
     
     return cars, frame
 
+def init_db():
+    conn = sqlite3.connect("events.db")
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS events
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  track_id INTEGER,
+                  direction TEXT,
+                  filename TEXT)''')
+    conn.commit()
+    conn.close()
+
+def log_event(track_id, direction, frame_buffer):
+    if track_id in logged_track_ids:
+        return
+    logged_track_ids.add(track_id)
+    filename = save_video_clip(list(frame_buffer), track_id)
+    conn = sqlite3.connect("events.db")
+    c = conn.cursor()
+    c.execute('''INSERT INTO events (track_id, direction, filename)
+                 VALUES (?, ?, ?)''',
+              (track_id, direction, filename))
+    conn.commit()
+    conn.close()
+
+def save_video_clip(buffer, track_id):
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    video_clip = f"car_{track_id}_{timestamp}.mp4"
+    height, width, _ = buffer[0].shape
+    out = cv2.VideoWriter(video_clip, fourcc, 20.0, (width, height))
+
+    for frame in buffer:
+        out.write(frame)
+
+    out.release()
+    return video_clip
+
+print("Initializing database...")
+init_db()
 print("Initializing video stream...")
 
 endpoint = os.getenv("VIDEO_ENDPOINT")
@@ -128,6 +173,7 @@ with open("yolo/coco.names", "r") as f:
 tracker = Sort()
 
 car_positions = {}
+frame_buffer = deque(maxlen=100)
 
 i = 0
 while True:
@@ -137,6 +183,8 @@ while True:
         print("Failed to read frame from video stream.")
         time.sleep(0.1)
         continue
+
+    frame_buffer.append(frame.copy())
     
     cars, frame = detect_cars(frame)
     detections = np.array(cars)
@@ -148,11 +196,21 @@ while True:
             car_position = car_positions.setdefault(track_id, [])
             
             car_position.append((x1, y1, x2, y2))
-            
-            if len(car_position) > 1:
-                x1_old, y1_old, x2_old, y2_old = car_position[-2]
-                x1_new, y1_new, x2_new, y2_new = car_position[-1]
-                direction = "right" if x1_new > x1_old else "left"
+
+            min_threshold = 30
+            if len(car_position) > min_threshold:
+                x1_old = car_position[-min_threshold][0]
+                x1_new = car_position[-1][0]
+                delta = x1_new - x1_old
+                threshold = 25
+                if delta > threshold:
+                    direction = "right"
+                    log_event(track_id, direction, frame_buffer)
+                elif delta < -threshold:
+                    direction = "left"
+                    log_event(track_id, direction, frame_buffer)
+                else:
+                    direction = "straight"
                 cv2.putText(frame, direction, (int(x1), int(y1) - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
             
             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)

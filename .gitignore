@@ -5,3 +5,5 @@ yolo/yolov3.weights
 .video_endpoint
 .vscode
 samples
+*.mp4
+events.db
