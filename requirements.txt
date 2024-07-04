@@ -6,4 +6,4 @@ keras
 filterpy
 scikit-image
 lap
-sqlite3
+ultralytics
