@@ -150,7 +150,7 @@ if endpoint is None:
     except FileNotFoundError:
         print("No endpoint specified in the secret file either, exiting")
         exit(1)
-endpoint = "./samples/sample.mp4"
+#endpoint = "./samples/sample.mp4"
 threaded_camera = ThreadedCamera(endpoint) if endpoint.startswith("rtsp://") else FileFrameFeed(endpoint)
 
 if not threaded_camera.is_valid():
