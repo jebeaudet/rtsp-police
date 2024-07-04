@@ -1,3 +1,4 @@
+yolov8n.pt
 .DS_Store
 __pycache__
 venv
@@ -7,3 +8,4 @@ yolo/*
 samples
 *.mp4
 events.db
+.idea

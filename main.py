@@ -10,11 +10,11 @@ from utils import get_video_endpoint
 def main():
     init_db()
 
-    yolo = ThreadedYOLO("yolo/yolov3.weights", "yolo/yolov3.cfg", "yolo/coco.names")
+    yolo = ThreadedYOLO()
 
     print("Initializing video stream...")
     endpoint = get_video_endpoint()
-    #endpoint = "./samples/sample-wrong.mp4"
+    endpoint = "./samples/sample-wrong.mp4"
     threaded_camera = ThreadedCamera(endpoint, lambda frame: yolo.queue(frame))
 
     if not threaded_camera.is_valid():
@@ -33,6 +33,9 @@ def main():
             if cars is None:
                 continue
             frame_buffer.append(frame.copy())
+
+            if True:
+                continue
 
             detections = np.array(cars)
             if detections.size > 0:
