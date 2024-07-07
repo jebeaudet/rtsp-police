@@ -1,5 +1,6 @@
 from collections import defaultdict, OrderedDict
 
+
 class BoundedDict(defaultdict):
     def __init__(self, max_size, default_factory=None, *args, **kwargs):
         super().__init__(default_factory, *args, **kwargs)

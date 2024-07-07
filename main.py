@@ -3,9 +3,9 @@ import cv2
 from collections import deque
 from camera import ThreadedCamera
 from database import init_db, log_event
-from sort import Sort
 from threaded_detection import ThreadedYOLO
 from utils import get_video_endpoint
+
 
 def main():
     init_db()
@@ -14,8 +14,8 @@ def main():
 
     print("Initializing video stream...")
     endpoint = get_video_endpoint()
-    endpoint = "./samples/sample-wrong.mp4"
-    threaded_camera = ThreadedCamera(endpoint, lambda frame: yolo.queue(frame))
+    # endpoint = "./samples/sample-wrong.mp4"
+    threaded_camera = ThreadedCamera(endpoint, lambda f: yolo.queue(f))
 
     if not threaded_camera.is_valid():
         print("Error: Couldn't open the video stream.")
@@ -23,8 +23,6 @@ def main():
     else:
         print("Video stream opened successfully.")
 
-    tracker = Sort()
-    car_positions = {}
     frame_buffer = deque(maxlen=100)
 
     try:
@@ -46,25 +44,27 @@ def main():
                         direction = "right"
                         log_event(track_id, direction, frame_buffer)
                     elif delta < -threshold:
+                        print(f"Found one bastard, track id {track_id}")
                         direction = "left"
                         log_event(track_id, direction, frame_buffer)
                     else:
                         direction = "straight"
-                    cv2.putText(frame, direction, (int(x1), int(y1) - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                    # cv2.putText(frame, direction, (int(x1), int(y1) - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
-                cv2.putText(frame, str(track_id), (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                # cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+                # cv2.putText(frame, str(track_id), (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-            cv2.imshow('Frame', frame)
-        
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # cv2.imshow('Frame', frame)
+
+            # if cv2.waitKey(1) & 0xFF == ord('q'):
+            #  break
 
     except KeyboardInterrupt:
         print("Exiting loop!")
 
     threaded_camera.close()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()

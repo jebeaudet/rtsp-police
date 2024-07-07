@@ -1,5 +1,6 @@
 import os
 
+
 def get_video_endpoint():
     endpoint = os.getenv("VIDEO_ENDPOINT")
     if endpoint is None:

@@ -1,6 +1,7 @@
 import cv2
 from threading import Thread
 
+
 class ThreadedCamera(object):
     def __init__(self, source, consumer):
         self.capture = cv2.VideoCapture(source)

@@ -5,6 +5,7 @@ from collections import deque
 
 logged_track_ids = set()
 
+
 def init_db():
     conn = sqlite3.connect("events.db")
     c = conn.cursor()
@@ -16,6 +17,7 @@ def init_db():
                   filename TEXT)''')
     conn.commit()
     conn.close()
+
 
 def log_event(track_id, direction, frame_buffer):
     if track_id in logged_track_ids:
@@ -29,6 +31,7 @@ def log_event(track_id, direction, frame_buffer):
               (track_id, direction, filename))
     conn.commit()
     conn.close()
+
 
 def save_video_clip(buffer, track_id):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')

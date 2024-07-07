@@ -11,7 +11,7 @@ from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
 from bounded_dict import BoundedDict
-from detection import detect_cars
+
 
 class ThreadedYOLO:
     def __init__(self):
@@ -26,7 +26,7 @@ class ThreadedYOLO:
     def run(self):
         while True:
             frame = self.frame_queue.get()
-            results = self.model.track(frame, persist=True, device="mps", classes=[2, 3, 5, 7])
+            results = self.model.track(frame, persist=True, device="mps", conf=0.5, classes=[2, 3, 5, 7], verbose=False)
             cars = self.process_results(results)
             if not cars:
                 continue
