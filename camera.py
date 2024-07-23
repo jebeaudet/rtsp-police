@@ -4,6 +4,7 @@ from threading import Thread
 
 class ThreadedCamera(object):
     def __init__(self, source, consumer):
+        self.source = source
         self.capture = cv2.VideoCapture(source)
         self.run = True
         self.consumer = consumer
@@ -11,8 +12,8 @@ class ThreadedCamera(object):
         self.thread.daemon = True
         self.thread.start()
 
-        self.status = False
-        self.frame = None
+    def reset(self):
+        self.capture = cv2.VideoCapture(self.source)
 
     def update(self):
         while self.run:
@@ -20,6 +21,10 @@ class ThreadedCamera(object):
                 status, frame = self.capture.read()
                 if status:
                     self.consumer(frame)
+                else:
+                    self.reset()
+            else:
+                self.reset()
         self.capture.release()
 
     def is_valid(self):

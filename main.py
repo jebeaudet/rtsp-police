@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 from collections import deque
 from camera import ThreadedCamera
-from database import init_db, log_event
+from database import init_db, is_logged, log_event
 from threaded_detection import ThreadedYOLO
 from utils import get_video_endpoint
 
@@ -34,18 +34,19 @@ def main():
 
             for box, track, track_id in cars:
                 x1, y1, x2, y2 = box
-                min_threshold = 15
+                min_threshold = 100
                 if len(track) > min_threshold:
                     x1_old = track[-1][0]
                     x1_new = track[0][0]
                     delta = x1_new - x1_old
-                    threshold = 25
+                    threshold = 100
                     if delta > threshold:
                         direction = "right"
                         log_event(track_id, direction, frame_buffer)
                     elif delta < -threshold:
-                        print(f"Found one bastard, track id {track_id}")
-                        direction = "left"
+                        if not is_logged(track_id):
+                            print(f"Found one bastard, track id {track_id} with x1_old {x1_old} and x1_new {x1_new}")
+                        direction = "wrong"
                         log_event(track_id, direction, frame_buffer)
                     else:
                         direction = "straight"

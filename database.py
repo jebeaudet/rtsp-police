@@ -20,7 +20,7 @@ def init_db():
 
 
 def log_event(track_id, direction, frame_buffer):
-    if track_id in logged_track_ids:
+    if is_logged(track_id):
         return
     logged_track_ids.add(track_id)
     filename = save_video_clip(list(frame_buffer), track_id)
@@ -31,6 +31,9 @@ def log_event(track_id, direction, frame_buffer):
               (track_id, direction, filename))
     conn.commit()
     conn.close()
+
+def is_logged(track_id):
+    return track_id in logged_track_ids
 
 
 def save_video_clip(buffer, track_id):

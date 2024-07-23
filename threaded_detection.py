@@ -41,7 +41,7 @@ class ThreadedYOLO:
     def process_results(self, results: List[Results]):
         car_detections = []
         raw_boxes = results[0].boxes
-        if len(raw_boxes) == 0:
+        if len(raw_boxes) == 0 or raw_boxes.id is None:
             return None
         boxes = raw_boxes.xyxy.cpu()
         track_ids = raw_boxes.id.int().cpu().tolist()
